@@ -3,6 +3,7 @@ from flask_cors import CORS
 import requests
 import os
 import json
+import time
 
 app = Flask(__name__, static_folder='.')
 CORS(app)  # Active CORS pour ce proxy
@@ -13,6 +14,51 @@ APIS = {
     'fibro': 'https://gastrofibro-api-1.onrender.com/predict',
     'irm': 'https://gastroirm-flask-api-4.onrender.com/predict'
 }
+
+def retry_request(api_url, method='POST', json_data=None, files=None, max_retries=3):
+    """
+    Fonction pour réessayer les requêtes en cas d'erreur 429
+    """
+    retry_delay = 2  # Commence avec 2 secondes
+    
+    for attempt in range(max_retries):
+        try:
+            if files:
+                response = requests.post(api_url, files=files, timeout=300)
+            else:
+                response = requests.post(
+                    api_url, 
+                    json=json_data, 
+                    timeout=300,
+                    headers={'Content-Type': 'application/json'}
+                )
+            
+            # Si on reçoit un 429, on attend et on réessaye
+            if response.status_code == 429:
+                if attempt < max_retries - 1:
+                    print(f"⏳ Rate limit atteint, attente de {retry_delay} secondes... (tentative {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Augmente le délai (backoff exponentiel)
+                    continue
+                else:
+                    # Dernier essai échoué
+                    return None, 429, "Service temporairement surchargé. Réessayez dans quelques instants."
+            
+            # Succès ou autre erreur
+            return response, response.status_code, None
+            
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                print(f"⏳ Timeout, nouvelle tentative dans {retry_delay} secondes...")
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                continue
+            return None, 504, "API timeout. Le service démarre peut-être. Réessayez dans 30 secondes."
+        
+        except requests.exceptions.RequestException as e:
+            return None, 500, f"Erreur de requête: {str(e)}"
+    
+    return None, 500, "Échec après plusieurs tentatives"
 
 @app.route('/')
 def index():
@@ -27,21 +73,17 @@ def proxy_text():
         print(f"📤 Sending to text API: {APIS['text']}")
         print(f"📦 Data: {data}")
         
-        response = requests.post(
-            APIS['text'], 
-            json=data, 
-            timeout=300,  # 5 minutes pour le cold start
-            headers={'Content-Type': 'application/json'}
-        )
+        response, status_code, error_msg = retry_request(APIS['text'], json_data=data)
+        
+        if response is None:
+            return jsonify({'error': error_msg}), status_code
         
         print(f"📥 Response status: {response.status_code}")
-        print(f"📄 Response text: {response.text[:200]}")  # Premiers 200 caractères
+        print(f"📄 Response text: {response.text[:200]}")
         
-        # Vérifier si la réponse est vide
         if not response.text:
             return jsonify({'error': 'API returned empty response. The service may be starting up.'}), 503
         
-        # Essayer de parser le JSON
         try:
             result = response.json()
             return jsonify(result), response.status_code
@@ -51,12 +93,6 @@ def proxy_text():
                 'raw_response': response.text[:500]
             }), 502
             
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'error': 'API timeout. The service may be waking up. Please try again in 30 seconds.'
-        }), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -68,11 +104,10 @@ def proxy_fibro():
         files = {'image': request.files['image']} if 'image' in request.files else {'file': request.files['file']}
         print(f"📤 Sending to fibro API: {APIS['fibro']}")
         
-        response = requests.post(
-            APIS['fibro'], 
-            files=files, 
-            timeout=300
-        )
+        response, status_code, error_msg = retry_request(APIS['fibro'], files=files)
+        
+        if response is None:
+            return jsonify({'error': error_msg}), status_code
         
         print(f"📥 Response status: {response.status_code}")
         print(f"📄 Response text: {response.text[:200]}")
@@ -89,12 +124,6 @@ def proxy_fibro():
                 'raw_response': response.text[:500]
             }), 502
             
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'error': 'API timeout. The service may be waking up. Please try again in 30 seconds.'
-        }), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -106,11 +135,10 @@ def proxy_irm():
         files = {'image': request.files['image']} if 'image' in request.files else {'file': request.files['file']}
         print(f"📤 Sending to IRM API: {APIS['irm']}")
         
-        response = requests.post(
-            APIS['irm'], 
-            files=files, 
-            timeout=300
-        )
+        response, status_code, error_msg = retry_request(APIS['irm'], files=files)
+        
+        if response is None:
+            return jsonify({'error': error_msg}), status_code
         
         print(f"📥 Response status: {response.status_code}")
         print(f"📄 Response text: {response.text[:200]}")
@@ -127,12 +155,6 @@ def proxy_irm():
                 'raw_response': response.text[:500]
             }), 502
             
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'error': 'API timeout. The service may be waking up. Please try again in 30 seconds.'
-        }), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
