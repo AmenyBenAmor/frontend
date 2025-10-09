@@ -293,6 +293,7 @@
             <div class="header-title">🏥 Gastro AI Diagnostic Assistant</div>
             <div class="header-subtitle">Advanced AI-powered gastroenterological analysis</div>
         </div>
+        
         <div class="content-grid">
             <div class="input-section">
                 <div class="section-title">💬 Describe Symptoms</div>
@@ -312,7 +313,7 @@
             </div>
         </div>
 
-        <button class="analyze-btn" id="analyzeBtn">🔍 Start AI Analysis (Real API)</button>
+        <button class="analyze-btn" id="analyzeBtn">🔍 Start AI Analysis</button>
 
         <div class="spinner" id="spinner"></div>
         <div class="loading-text" id="loadingText">🔄 AI is analyzing your data...</div>
@@ -332,21 +333,20 @@
         </div>
     </div>
 
+    <!-- jsPDF Library pour génération PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <script>
-        // Define proxy configuration
-            const USE_PROXY = true; // or false if you don't use a proxy
-            const PROXY_URL = ''; // Leave empty since the proxy runs on the same domain/port
-
-        // Mode: 'direct' (avec CORS activé) ou 'proxy' (via serveur proxy local)
-        const MODE = 'proxy'; // Changez en 'direct' si vous activez CORS sur vos APIs
+        // Configuration
+        const USE_PROXY = true;
+        const PROXY_URL = '';
+        const MODE = 'proxy';
         
         const APIS = MODE === 'proxy' ? {
-            // URLs du proxy local (résout le problème CORS)
             text: '/proxy/predict/text',
             fibro: '/proxy/predict/fibro',
             irm: '/proxy/predict/irm'
         } : {
-            // URLs directes (nécessite CORS activé sur les APIs)
             text: 'https://gastrocsv-flask-api.onrender.com/predict',
             fibro: 'https://gastrofibro-api-1.onrender.com/predict',
             irm: 'https://gastroirm-flask-api-4.onrender.com/predict'
@@ -355,7 +355,7 @@
         let uploadedFile = null;
         let lastDiagnosis = null;
 
-        // File upload handling
+        // Gestion upload fichier
         const fileInput = document.getElementById('fileInput');
         const fileUpload = document.getElementById('fileUpload');
         const imagePreview = document.getElementById('imagePreview');
@@ -486,9 +486,9 @@
                     errorMessage = `CORS Error: Impossible de contacter l'API. 
                     
 Solutions:
-1. Ajoutez CORS sur votre backend Flask (voir instructions ci-dessus)
-2. Utilisez le mode démo pour tester l'interface
-3. Ouvrez la console (F12) pour plus de détails
+1. Vérifiez que votre proxy Flask est démarré
+2. Vérifiez les URLs dans le fichier proxy.py
+3. Consultez la console (F12) pour plus de détails
 
 Erreur technique: ${error.message}`;
                 }
@@ -659,64 +659,214 @@ Erreur technique: ${error.message}`;
             errors.forEach(error => error.remove());
         }
 
-        // Demo mode functions
-        function simulateTextAnalysis() {
-            const demoResponse = {
-                prediction: 'Gastrite',
-                probabilities: {
-                    'Gastrite': 0.85,
-                    'Ulcer': 0.10,
-                    'Healthy': 0.05
-                },
-                diagnosis: 'Inflammation de la muqueuse gastrique détectée',
-                recommendations: 'Éviter les aliments épicés, consulter un gastro-entérologue'
-            };
-            
-            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Text Analysis', symptoms: 'Demo symptoms' };
-            displayResults(demoResponse, 'Demo Mode - Text Analysis');
-            document.getElementById('pdfSection').classList.add('show');
-        }
-
-        function simulateImageAnalysis() {
-            const demoResponse = {
-                prediction: 'Esophagitis',
-                probabilities: {
-                    'Esophagitis': 0.78,
-                    'Gastric Polyps': 0.15,
-                    'Normal': 0.07
-                },
-                diagnosis: 'Inflammation œsophagienne visible',
-                recommendations: 'Traitement par IPP recommandé'
-            };
-            
-            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Image Analysis', symptoms: '' };
-            displayResults(demoResponse, 'Demo Mode - Image Analysis');
-            document.getElementById('pdfSection').classList.add('show');
-        }
-
-        function simulateMixedAnalysis() {
-            const demoResponse = {
-                prediction: 'Healthy - No pathology detected',
-                probabilities: {
-                    'Healthy': 0.92,
-                    'Gastritis': 0.05,
-                    'Other': 0.03
-                },
-                diagnosis: 'Aucune anomalie significative détectée',
-                recommendations: 'Maintenir une alimentation équilibrée et un suivi régulier'
-            };
-            
-            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Mixed Analysis', symptoms: 'Demo mixed' };
-            displayResults(demoResponse, 'Demo Mode - Mixed Analysis');
-            document.getElementById('pdfSection').classList.add('show');
-        }
-
+        // Bouton d'analyse
         document.getElementById('analyzeBtn').addEventListener('click', analyzeData);
 
-        document.getElementById('pdfBtn').addEventListener('click', () => {
-            alert('📄 PDF Generation: Cette fonctionnalité nécessite une bibliothèque comme jsPDF ou un backend. Les données sont disponibles dans lastDiagnosis pour génération ultérieure.');
-            console.log('Données pour PDF:', lastDiagnosis);
-        });
+        // ========================================
+        // FONCTION GÉNÉRATION PDF - PARTIE PRINCIPALE
+        // ========================================
+        document.getElementById('pdfBtn').addEventListener('click', generatePDF);
+
+        function generatePDF() {
+            if (!lastDiagnosis) {
+                alert('⚠️ Aucune analyse disponible. Veuillez d\'abord effectuer une analyse.');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 20;
+                const lineHeight = 7;
+                let yPos = 20;
+
+                // En-tête avec fond bleu
+                doc.setFillColor(33, 150, 243);
+                doc.rect(0, 0, pageWidth, 40, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.setFont(undefined, 'bold');
+                doc.text('🏥 Gastro AI Medical Report', pageWidth / 2, 20, { align: 'center' });
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text('Advanced AI-powered Diagnostic Analysis', pageWidth / 2, 30, { align: 'center' });
+                
+                yPos = 50;
+                doc.setTextColor(0, 0, 0);
+
+                // Informations du rapport
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text('📋 Report Information', margin, yPos);
+                yPos += lineHeight + 3;
+                
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Date: ${new Date().toLocaleString('fr-FR')}`, margin, yPos);
+                yPos += lineHeight;
+                doc.text(`Model Used: ${lastDiagnosis.modelUsed}`, margin, yPos);
+                yPos += lineHeight + 5;
+
+                // Symptômes décrits (si présents)
+                if (lastDiagnosis.symptoms && lastDiagnosis.symptoms.trim()) {
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('💬 Patient Symptoms', margin, yPos);
+                    yPos += lineHeight + 2;
+                    
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    const symptomsLines = doc.splitTextToSize(lastDiagnosis.symptoms, pageWidth - 2 * margin);
+                    doc.text(symptomsLines, margin, yPos);
+                    yPos += symptomsLines.length * lineHeight + 5;
+                }
+
+                // Diagnostic principal
+                if (lastDiagnosis.response.prediction) {
+                    if (yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFillColor(227, 242, 253);
+                    doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 25, 'F');
+                    
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(21, 101, 192);
+                    doc.text('🎯 AI Diagnosis', margin, yPos);
+                    yPos += lineHeight + 2;
+                    
+                    doc.setFontSize(11);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    const predictionLines = doc.splitTextToSize(lastDiagnosis.response.prediction, pageWidth - 2 * margin);
+                    doc.text(predictionLines, margin, yPos);
+                    yPos += predictionLines.length * lineHeight + 8;
+                }
+
+                // Probabilités/Scores de confiance
+                if (lastDiagnosis.response.probabilities) {
+                    if (yPos > 230) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(21, 101, 192);
+                    doc.text('📊 Confidence Scores', margin, yPos);
+                    yPos += lineHeight + 3;
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    
+                    for (const [cls, prob] of Object.entries(lastDiagnosis.response.probabilities)) {
+                        const percentage = typeof prob === 'number' ? (prob * 100).toFixed(1) : prob;
+                        doc.text(`• ${cls}: ${percentage}%`, margin + 5, yPos);
+                        yPos += lineHeight;
+                    }
+                    yPos += 5;
+                }
+
+                // Évaluation médicale
+                if (lastDiagnosis.response.diagnosis && 
+                    lastDiagnosis.response.diagnosis !== lastDiagnosis.response.prediction) {
+                    if (yPos > 240) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(21, 101, 192);
+                    doc.text('🏥 Medical Assessment', margin, yPos);
+                    yPos += lineHeight + 2;
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    const diagnosisLines = doc.splitTextToSize(lastDiagnosis.response.diagnosis, pageWidth - 2 * margin);
+                    doc.text(diagnosisLines, margin, yPos);
+                    yPos += diagnosisLines.length * lineHeight + 5;
+                }
+
+                // Recommandations
+                if (lastDiagnosis.response.recommendations) {
+                    if (yPos > 240) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(21, 101, 192);
+                    doc.text('💡 Recommendations', margin, yPos);
+                    yPos += lineHeight + 2;
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    const recoLines = doc.splitTextToSize(lastDiagnosis.response.recommendations, pageWidth - 2 * margin);
+                    doc.text(recoLines, margin, yPos);
+                    yPos += recoLines.length * lineHeight + 10;
+                }
+
+                // Disclaimer médical important
+                if (yPos > 230) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFillColor(255, 243, 224);
+                doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 40, 'F');
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(230, 81, 0);
+                doc.text('⚕️ Medical Disclaimer', margin, yPos);
+                yPos += lineHeight + 2;
+                
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+                const disclaimerText = 'This AI analysis is for research and educational purposes only. Results should not replace professional medical consultation. Always seek advice from qualified healthcare providers for proper diagnosis and treatment.';
+                const disclaimerLines = doc.splitTextToSize(disclaimerText, pageWidth - 2 * margin);
+                doc.text(disclaimerLines, margin, yPos);
+
+                // Pied de page avec numérotation
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text(
+                        `Page ${i} of ${totalPages} | Generated by Gastro AI Assistant`,
+                        pageWidth / 2,
+                        doc.internal.pageSize.getHeight() - 10,
+                        { align: 'center' }
+                    );
+                }
+
+                // Télécharger le PDF avec nom personnalisé
+                const fileName = `Gastro_AI_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+                doc.save(fileName);
+                
+                // Message de succès avec animation
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 10000; font-weight: 600; animation: slideIn 0.3s ease;';
+                successMsg.textContent = '✅ PDF téléchargé avec succès!';
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+                
+            } catch (error) {
+                console.error('Erreur lors de la génération du PDF:', error);
+                alert('❌ Erreur lors de la génération du PDF: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
