@@ -333,6 +333,50 @@
     </div>
 
     <script>
+        // Fonction pour réveiller une API
+async function wakeUpAPI(apiUrl) {
+    try {
+        console.log(`Réveil de l'API: ${apiUrl}`);
+        const response = await fetch(apiUrl, { 
+            method: 'GET',
+            signal: AbortSignal.timeout(30000) // 30 secondes
+        });
+        console.log(`API réveillée: ${response.status}`);
+        return true;
+    } catch (error) {
+        console.log(`Erreur réveil API: ${error.message}`);
+        return false;
+    }
+}
+
+// Avant d'envoyer une requête de prédiction
+async function predictWithWakeup(endpoint, data) {
+    // Afficher un message de chargement
+    showLoading("Réveil de l'API en cours... Cela peut prendre 1-2 minutes");
+    
+    // Essayer de réveiller l'API
+    const apiUrls = {
+        'text': 'https://gastrocsv-flask-api.onrender.com',
+        'fibro': 'https://gastrofibro-api-1.onrender.com',
+        'irm': 'https://gastroirm-flask-api-4.onrender.com'
+    };
+    
+    await wakeUpAPI(apiUrls[endpoint]);
+    
+    // Attendre quelques secondes
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    showLoading("Envoi de la requête...");
+    
+    // Maintenant faire la vraie requête
+    const response = await fetch(`/proxy/predict/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    
+    return response;
+}
         // Define proxy configuration
             const USE_PROXY = true; // or false if you don't use a proxy
             const PROXY_URL = ''; // Leave empty since the proxy runs on the same domain/port
@@ -719,4 +763,5 @@ Erreur technique: ${error.message}`;
         });
     </script>
 </body>
+
 </html>
