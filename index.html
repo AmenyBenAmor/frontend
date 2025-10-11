@@ -485,10 +485,7 @@
                 if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
                     errorMessage = `CORS Error: Impossible de contacter l'API. 
                     
-Solutions:
-1. Vérifiez que votre proxy Flask est démarré
-2. Vérifiez les URLs dans le fichier proxy.py
-3. Consultez la console (F12) pour plus de détails
+
 
 Erreur technique: ${error.message}`;
                 }
@@ -645,13 +642,18 @@ Erreur technique: ${error.message}`;
             document.getElementById('analyzeBtn').disabled = show;
         }
 
-        function showError(message) {
+        function showError(message, isWarning = false) {
             const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-box';
+            errorDiv.className = isWarning ? 'warning-box' : 'error-box';
             errorDiv.style.whiteSpace = 'pre-line';
             errorDiv.innerHTML = message;
             document.querySelector('.container').insertBefore(errorDiv, document.getElementById('resultsSection'));
-            setTimeout(() => errorDiv.remove(), 10000);
+            
+            // Scroll vers l'erreur
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Retire après 15 secondes pour les warnings, 10 pour les erreurs
+            setTimeout(() => errorDiv.remove(), isWarning ? 15000 : 10000);
         }
 
         function hideError() {
@@ -870,3 +872,4 @@ Erreur technique: ${error.message}`;
     </script>
 </body>
 </html>
+
