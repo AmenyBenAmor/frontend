@@ -15,11 +15,11 @@ APIS = {
     'irm': 'https://gastroirm-flask-api-4.onrender.com/predict'
 }
 
-def retry_request(api_url, method='POST', json_data=None, files=None, max_retries=3):
+def retry_request(api_url, method='POST', json_data=None, files=None, max_retries=5):
     """
     Fonction pour réessayer les requêtes en cas d'erreur 429
     """
-    retry_delay = 2  # Commence avec 2 secondes
+    retry_delay = 3  # Commence avec 2 secondes
     
     for attempt in range(max_retries):
         try:
@@ -36,25 +36,24 @@ def retry_request(api_url, method='POST', json_data=None, files=None, max_retrie
             # Si on reçoit un 429, on attend et on réessaye
             if response.status_code == 429:
                 if attempt < max_retries - 1:
-                    print(f"⏳ Rate limit atteint, attente de {retry_delay} secondes... (tentative {attempt + 1}/{max_retries})")
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # Augmente le délai (backoff exponentiel)
+                    wait_time = retry_delay * (attempt + 1)  # Délai progressif
+                    print(f"⏳ Rate limit atteint, attente de {wait_time} secondes... (tentative {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time) # Augmente le délai (backoff exponentiel)
                     continue
                 else:
                     # Dernier essai échoué
-                    return None, 429, "Service temporairement surchargé. Réessayez dans quelques instants."
+                     return None, 429, "⚠️ Service temporairement surchargé. Les serveurs Render gratuits ont des limites de requêtes. Veuillez patienter 1-2 minutes avant de réessayer."
             
             # Succès ou autre erreur
             return response, response.status_code, None
             
         except requests.exceptions.Timeout:
             if attempt < max_retries - 1:
-                print(f"⏳ Timeout, nouvelle tentative dans {retry_delay} secondes...")
-                time.sleep(retry_delay)
-                retry_delay *= 2
+                wait_time = retry_delay * (attempt + 1)
+                print(f"⏳ Timeout, nouvelle tentative dans {wait_time} secondes...")
+                time.sleep(wait_time)
                 continue
-            return None, 504, "API timeout. Le service démarre peut-être. Réessayez dans 30 secondes."
-        
+            return None, 504, "⏱️ API timeout. Le service Render démarre peut-être (cold start). Veuillez patienter 30-60 secondes et réessayer."
         except requests.exceptions.RequestException as e:
             return None, 500, f"Erreur de requête: {str(e)}"
     
@@ -162,3 +161,4 @@ def proxy_irm():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
