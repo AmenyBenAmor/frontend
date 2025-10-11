@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gastro AI Diagnostic Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 50%, #e8f5e8 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .main-header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 2px solid #e3f2fd;
+            text-align: center;
+        }
+
+        .header-title {
+            color: #1565c0;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header-subtitle {
+            color: #546e7a;
+            font-size: 1rem;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 2px solid #e3f2fd;
+        }
+
+        .section-title {
+            color: #1565c0;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e3f2fd;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 200px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+
+        .file-upload {
+            border: 2px dashed #2196f3;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f5f9ff;
+        }
+
+        .file-upload:hover {
+            background: #e3f2fd;
+            border-color: #1565c0;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .upload-label {
+            color: #1565c0;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .image-preview {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .analyze-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #2196f3, #1565c0);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(33,150,243,0.4);
+        }
+
+        .analyze-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 2px solid #e0f2f1;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f9ff;
+            border-radius: 10px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .result-label {
+            font-weight: 700;
+            color: #1565c0;
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            color: #424242;
+            font-size: 1rem;
+        }
+
+        .disclaimer {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196f3;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            color: #1565c0;
+            font-size: 0.9rem;
+        }
+
+        .error-box {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #c62828;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196f3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .spinner.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            text-align: center;
+            color: #1565c0;
+            font-weight: 600;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .loading-text.show {
+            display: block;
+        }
+
+        .pdf-section {
+            text-align: center;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .pdf-section.show {
+            display: block;
+        }
+
+        .pdf-btn {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .pdf-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76,175,80,0.4);
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-title {
+                font-size: 1.5rem;
+            }
+
+            textarea {
+                min-height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-header">
+            <div class="header-title">🏥 Gastro AI Diagnostic Assistant</div>
+            <div class="header-subtitle">Advanced AI-powered gastroenterological analysis</div>
+        </div>
+        <div class="content-grid">
+            <div class="input-section">
+                <div class="section-title">💬 Describe Symptoms</div>
+                <textarea id="symptoms" placeholder="Describe your symptoms in detail..."></textarea>
+            </div>
+
+            <div class="input-section">
+                <div class="section-title">📸 Upload Medical Image</div>
+                <div class="file-upload" id="fileUpload">
+                    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg">
+                    <label for="fileInput" class="upload-label">
+                        📁 Click to upload or drag & drop<br>
+                        <small>PNG, JPG, JPEG (Max 10MB)</small>
+                    </label>
+                </div>
+                <div class="image-preview" id="imagePreview"></div>
+            </div>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn">🔍 Start AI Analysis (Real API)</button>
+
+        <div class="spinner" id="spinner"></div>
+        <div class="loading-text" id="loadingText">🔄 AI is analyzing your data...</div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="section-title">🎯 Analysis Results</div>
+            <div id="resultsContent"></div>
+        </div>
+
+        <div class="pdf-section" id="pdfSection">
+            <button class="pdf-btn" id="pdfBtn">📥 Download Complete PDF Report</button>
+        </div>
+
+        <div class="disclaimer">
+            <strong>⚕️ Medical Disclaimer:</strong> This AI analysis is for research and educational purposes only.
+            Results should not replace professional medical consultation. Always seek advice from qualified healthcare providers.
+        </div>
+    </div>
+
+    <script>
+        // Define proxy configuration
+            const USE_PROXY = true; // or false if you don't use a proxy
+            const PROXY_URL = ''; // Leave empty since the proxy runs on the same domain/port
+
+        // Mode: 'direct' (avec CORS activé) ou 'proxy' (via serveur proxy local)
+        const MODE = 'proxy'; // Changez en 'direct' si vous activez CORS sur vos APIs
+        
+        const APIS = MODE === 'proxy' ? {
+            // URLs du proxy local (résout le problème CORS)
+            text: '/proxy/predict/text',
+            fibro: '/proxy/predict/fibro',
+            irm: '/proxy/predict/irm'
+        } : {
+            // URLs directes (nécessite CORS activé sur les APIs)
+            text: 'https://gastrocsv-flask-api.onrender.com/predict',
+            fibro: 'https://gastrofibro-api-1.onrender.com/predict',
+            irm: 'https://gastroirm-flask-api-4.onrender.com/predict'
+        };
+
+        let uploadedFile = null;
+        let lastDiagnosis = null;
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const fileUpload = document.getElementById('fileUpload');
+        const imagePreview = document.getElementById('imagePreview');
+
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.style.background = '#e3f2fd';
+        });
+
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.style.background = '#f5f9ff';
+        });
+
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.style.background = '#f5f9ff';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Image too large. Maximum size is 10MB.');
+                return;
+            }
+
+            if (!file.type.match('image.*')) {
+                showError('Please upload a valid image file.');
+                return;
+            }
+
+            uploadedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview">
+                    <p style="margin-top: 10px; color: #1565c0;">${file.name}</p>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function detectImageType(filename) {
+            return filename.toLowerCase().includes('slice') ? 'irm' : 'fibro';
+        }
+
+        function formatPrediction(pred) {
+            if (!pred) return "Analysis in progress...";
+            
+            const predLower = pred.toLowerCase().trim();
+            
+            const healthyWords = ['sain', 'healthy', 'normal', 'no disease', 'aucune pathologie'];
+            if (healthyWords.some(word => predLower.includes(word))) {
+                return "No suspicious signs identified from the image and/or symptoms provided. Regular medical follow-up is still recommended.";
+            }
+
+            if (predLower.includes('malade')) {
+                const disease = predLower.replace('malade', '').replace(':', '').trim();
+                if (disease) {
+                    return `Abnormalities suggesting possible **${disease}** have been identified. Clinical confirmation and additional tests are required before definitive diagnosis.`;
+                }
+            }
+
+            return `Abnormalities suggesting possible **${pred}** have been identified. Clinical confirmation and additional tests are required before definitive diagnosis.`;
+        }
+
+        async function analyzeData() {
+            const symptoms = document.getElementById('symptoms').value.trim();
+            
+            if (!symptoms && !uploadedFile) {
+                showError('⚠️ Please provide either text symptoms or upload a medical image.');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+            document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('pdfSection').classList.remove('show');
+
+            try {
+                let response;
+                let modelUsed;
+
+                if (uploadedFile && !symptoms) {
+                    const imageType = detectImageType(uploadedFile.name);
+                    const apiUrl = imageType === 'irm' ? APIS.irm : APIS.fibro;
+                    modelUsed = imageType === 'irm' ? 'IRM/MRI Model' : 'Fibroscopy Model';
+                    console.log('Calling image API:', apiUrl);
+                    response = await predictWithImage(apiUrl, uploadedFile);
+                } else if (symptoms && !uploadedFile) {
+                    modelUsed = 'Text Symptom Analysis Model';
+                    console.log('Calling text API:', APIS.text);
+                    response = await predictWithText(APIS.text, symptoms);
+                } else {
+                    const imageType = detectImageType(uploadedFile.name);
+                    const apiUrl = imageType === 'irm' ? APIS.irm : APIS.fibro;
+                    modelUsed = `${imageType === 'irm' ? 'IRM/MRI' : 'Fibroscopy'} Model with Text Context`;
+                    console.log('Calling combined API:', apiUrl);
+                    response = await predictWithImage(apiUrl, uploadedFile);
+                }
+
+                console.log('API Response:', response);
+
+                if (response.prediction) {
+                    response.prediction = formatPrediction(response.prediction);
+                }
+
+                lastDiagnosis = { response, modelUsed, symptoms };
+                displayResults(response, modelUsed);
+                document.getElementById('pdfSection').classList.add('show');
+
+            } catch (error) {
+                console.error('Error details:', error);
+                let errorMessage = error.message;
+                
+                if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                    errorMessage = `CORS Error: Impossible de contacter l'API. 
+                    
+Solutions:
+1. Ajoutez CORS sur votre backend Flask (voir instructions ci-dessus)
+2. Utilisez le mode démo pour tester l'interface
+3. Ouvrez la console (F12) pour plus de détails
+
+Erreur technique: ${error.message}`;
+                }
+                
+                showError(`⚠️ ${errorMessage}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function predictWithText(apiUrl, text) {
+            try {
+                const url = USE_PROXY ? PROXY_URL + apiUrl : apiUrl;
+                console.log('Fetching:', url);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({ symptoms: text })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Text API Response Data:', data);
+                return formatResponse(data);
+            } catch (error) {
+                console.error('predictWithText error:', error);
+                throw error;
+            }
+        }
+
+        async function predictWithImage(apiUrl, file) {
+            try {
+                const url = USE_PROXY ? PROXY_URL + apiUrl : apiUrl;
+                const formData = new FormData();
+                formData.append('image', file);
+
+                console.log('Sending image to:', url);
+
+                let response = await fetch(url, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: formData
+                });
+
+                if (response.status === 400) {
+                    const formData2 = new FormData();
+                    formData2.append('file', file);
+                    response = await fetch(url, {
+                        method: 'POST',
+                        mode: 'cors',
+                        body: formData2
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Image API Response Data:', data);
+                return formatResponse(data);
+            } catch (error) {
+                console.error('predictWithImage error:', error);
+                throw error;
+            }
+        }
+
+        function formatResponse(data) {
+            console.log('Formatting response:', data);
+            const formatted = {};
+            
+            formatted.prediction = data.prediction || data.result || data.class || data.diagnosis || 'Unknown';
+            
+            if (data.probabilities) {
+                formatted.probabilities = data.probabilities;
+            } else if (data.confidence !== undefined) {
+                formatted.probabilities = {
+                    [formatted.prediction]: data.confidence,
+                    'Others': 1 - data.confidence
+                };
+            }
+            
+            formatted.diagnosis = data.diagnosis || data.description || data.details || '';
+            formatted.recommendations = data.recommendations || data.advice || data.suggestion || '';
+            
+            return formatted;
+        }
+
+        function displayResults(data, modelUsed) {
+            console.log('Displaying results:', data);
+            let html = '';
+            
+            html += `
+                <div class="result-item">
+                    <div class="result-label">🤖 Model Used</div>
+                    <div class="result-value">${modelUsed}</div>
+                </div>
+            `;
+            
+            if (data.prediction) {
+                html += `
+                    <div class="result-item">
+                        <div class="result-label">🎯 Diagnosis</div>
+                        <div class="result-value">${data.prediction}</div>
+                    </div>
+                `;
+            }
+
+            if (data.diagnosis && data.diagnosis !== data.prediction) {
+                html += `
+                    <div class="result-item">
+                        <div class="result-label">🏥 Assessment</div>
+                        <div class="result-value">${data.diagnosis}</div>
+                    </div>
+                `;
+            }
+
+            if (data.recommendations) {
+                html += `
+                    <div class="result-item">
+                        <div class="result-label">💡 Recommendations</div>
+                        <div class="result-value">${data.recommendations}</div>
+                    </div>
+                `;
+            }
+
+            if (data.probabilities) {
+                html += '<div class="result-item"><div class="result-label">📊 Probabilities</div>';
+                for (const [cls, prob] of Object.entries(data.probabilities)) {
+                    const percentage = typeof prob === 'number' ? (prob * 100).toFixed(1) : prob;
+                    html += `<div class="result-value">${cls}: ${percentage}%</div>`;
+                }
+                html += '</div>';
+            }
+
+            document.getElementById('resultsContent').innerHTML = html;
+            document.getElementById('resultsSection').classList.add('show');
+        }
+
+        function showLoading(show) {
+            document.getElementById('spinner').classList.toggle('show', show);
+            document.getElementById('loadingText').classList.toggle('show', show);
+            document.getElementById('analyzeBtn').disabled = show;
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-box';
+            errorDiv.style.whiteSpace = 'pre-line';
+            errorDiv.innerHTML = message;
+            document.querySelector('.container').insertBefore(errorDiv, document.getElementById('resultsSection'));
+            setTimeout(() => errorDiv.remove(), 10000);
+        }
+
+        function hideError() {
+            const errors = document.querySelectorAll('.error-box');
+            errors.forEach(error => error.remove());
+        }
+
+        // Demo mode functions
+        function simulateTextAnalysis() {
+            const demoResponse = {
+                prediction: 'Gastrite',
+                probabilities: {
+                    'Gastrite': 0.85,
+                    'Ulcer': 0.10,
+                    'Healthy': 0.05
+                },
+                diagnosis: 'Inflammation de la muqueuse gastrique détectée',
+                recommendations: 'Éviter les aliments épicés, consulter un gastro-entérologue'
+            };
+            
+            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Text Analysis', symptoms: 'Demo symptoms' };
+            displayResults(demoResponse, 'Demo Mode - Text Analysis');
+            document.getElementById('pdfSection').classList.add('show');
+        }
+
+        function simulateImageAnalysis() {
+            const demoResponse = {
+                prediction: 'Esophagitis',
+                probabilities: {
+                    'Esophagitis': 0.78,
+                    'Gastric Polyps': 0.15,
+                    'Normal': 0.07
+                },
+                diagnosis: 'Inflammation œsophagienne visible',
+                recommendations: 'Traitement par IPP recommandé'
+            };
+            
+            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Image Analysis', symptoms: '' };
+            displayResults(demoResponse, 'Demo Mode - Image Analysis');
+            document.getElementById('pdfSection').classList.add('show');
+        }
+
+        function simulateMixedAnalysis() {
+            const demoResponse = {
+                prediction: 'Healthy - No pathology detected',
+                probabilities: {
+                    'Healthy': 0.92,
+                    'Gastritis': 0.05,
+                    'Other': 0.03
+                },
+                diagnosis: 'Aucune anomalie significative détectée',
+                recommendations: 'Maintenir une alimentation équilibrée et un suivi régulier'
+            };
+            
+            lastDiagnosis = { response: demoResponse, modelUsed: 'Demo Mode - Mixed Analysis', symptoms: 'Demo mixed' };
+            displayResults(demoResponse, 'Demo Mode - Mixed Analysis');
+            document.getElementById('pdfSection').classList.add('show');
+        }
+
+        document.getElementById('analyzeBtn').addEventListener('click', analyzeData);
+
+        document.getElementById('pdfBtn').addEventListener('click', () => {
+            alert('📄 PDF Generation: Cette fonctionnalité nécessite une bibliothèque comme jsPDF ou un backend. Les données sont disponibles dans lastDiagnosis pour génération ultérieure.');
+            console.log('Données pour PDF:', lastDiagnosis);
+        });
+    </script>
+</body>
+</html>
